@@ -7,19 +7,91 @@ output:
 
 
 ## Loading and preprocessing the data
+```{r}
+library(data.table)
+
+df = fread("activity.csv")
 
 
+```
 
 ## What is mean total number of steps taken per day?
+```{r}
+library(dplyr)
+library(plotly)
 
+total_steps = df %>% group_by(date) %>% summarise(total = sum(steps))
+
+plot_ly(x = total_steps$total, type = "histogram", title = "Total number of steps taken per day")
+
+mean(total_steps$total, na.rm = T)
+median(total_steps$total, na.rm = T)
+
+```
 
 
 ## What is the average daily activity pattern?
+```{r}
 
+avg_steps = df %>% group_by(interval) %>% summarise(avg = mean(steps, na.rm = T))
+
+plot_ly(y = avg_steps$avg, x = avg_steps$interval, type = "scatter", mode = "lines")
+
+avg_steps[ avg_steps$avg ==  max(avg_steps$avg),]$interval
+
+```
 
 
 ## Imputing missing values
+```{r}
+
+length(which(is.na(df$steps)))
+
+imputed_df = df
+for( i in 1:nrow(df)){
+  
+  if(is.na(imputed_df$steps[[i]])){
+    
+    imputed_df$steps[[i]] = avg_steps[avg_steps$interval == imputed_df$interval[[i]],]$avg
+    
+  }
+  
+  
+}
+
+total_steps = imputed_df %>% group_by(date) %>% summarise(total = sum(steps))
+
+plot_ly(x = total_steps$total, type = "histogram", title = "Total number of steps taken per day")
+
+mean(total_steps$total, na.rm = T)
+median(total_steps$total, na.rm = T)
 
 
+
+```
+Only the median is affected
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+
+imputed_df$date = as.Date(imputed_df$date)
+
+day = weekdays(imputed_df$date)
+
+day = ifelse(grepl("Saturday|Sunday", day), "weekend", "weekday")
+
+imputed_df$day = day
+
+weekday = imputed_df %>% filter(day == "weekday")
+weekend = imputed_df %>% filter(day == "weekend")
+
+avg_steps_weekday = weekday %>% group_by(interval) %>% summarise(avg = mean(steps, na.rm = T))
+avg_steps_weekend = weekend %>% group_by(interval) %>% summarise(avg = mean(steps, na.rm = T))
+
+p1 = plot_ly(y = avg_steps_weekday$avg, x = avg_steps_weekday$interval) %>% add_lines(name = ~"Weekday Average Steps")
+p2 = plot_ly(y = avg_steps_weekend$avg, x = avg_steps_weekend$interval) %>% add_lines(name = ~"Weekend Average Steps")
+
+
+subplot(p1,p2)
+```
+
